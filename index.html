@@ -1,0 +1,109 @@
+
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+  <meta charset="UTF-8" />
+  <title>Pedido de Pães</title>
+  <script src="https://www.gstatic.com/firebasejs/10.12.0/firebase-app.js"></script>
+  <script src="https://www.gstatic.com/firebasejs/10.12.0/firebase-firestore.js"></script>
+  <script src="https://www.gstatic.com/firebasejs/10.12.0/firebase-storage.js"></script>
+  <style>
+    body { font-family: Arial, sans-serif; padding: 20px; }
+    input, button, label { display: block; margin: 10px 0; width: 300px; }
+    table { border-collapse: collapse; margin-top: 20px; width: 100%; }
+    th, td { border: 1px solid #ccc; padding: 8px; }
+  </style>
+</head>
+<body>
+  <h2>Pedido de Pães</h2>
+  <form id="pedidoForm">
+    <label>Nome:</label>
+    <input type="text" id="nome" required />
+    <label>Apartamento:</label>
+    <input type="text" id="apto" required />
+    <label>Torre:</label>
+    <input type="text" id="torre" required />
+    <label>Quantidade:</label>
+    <input type="number" id="quantidade" min="1" max="10" required />
+    <label>Comprovante (imagem ou PDF):</label>
+    <input type="file" id="comprovante" accept="image/*,application/pdf" />
+    <button type="submit">Enviar Pedido</button>
+  </form>
+
+  <div id="status"></div>
+
+  <script type="module">
+    import { initializeApp } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-app.js";
+    import { getFirestore, collection, getDocs, query, where, addDoc, Timestamp } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-firestore.js";
+    import { getStorage, ref, uploadBytes, getDownloadURL } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-storage.js";
+
+    const firebaseConfig = {
+      apiKey: "AIzaSyDlXbLRh3O6xqSDnU-If-z0lbfuYgLm8Rg",
+      authDomain: "projeto-padeiro.firebaseapp.com",
+      projectId: "projeto-padeiro",
+      storageBucket: "projeto-padeiro.appspot.com",
+      messagingSenderId: "905130125554",
+      appId: "1:905130125554:web:225a7de84f2545043a086b"
+    };
+
+    const app = initializeApp(firebaseConfig);
+    const db = getFirestore(app);
+    const storage = getStorage(app);
+
+    document.getElementById("pedidoForm").addEventListener("submit", async (e) => {
+      e.preventDefault();
+      const nome = document.getElementById("nome").value;
+      const apto = document.getElementById("apto").value;
+      const torre = document.getElementById("torre").value;
+      const quantidade = parseInt(document.getElementById("quantidade").value);
+      const comprovante = document.getElementById("comprovante").files[0];
+
+      const lotesRef = collection(db, "lotes");
+      const hoje = new Date();
+      const loteQuery = query(lotesRef, where("data", "==", hoje.toISOString().split('T')[0]));
+      const loteSnap = await getDocs(loteQuery);
+
+      if (loteSnap.empty) {
+        alert("Nenhum lote disponível para hoje.");
+        return;
+      }
+
+      const lote = loteSnap.docs[0];
+      const pedidosRef = collection(db, "pedidos");
+      const pedidosSnap = await getDocs(query(pedidosRef, where("loteId", "==", lote.id)));
+
+      let totalAtual = 0;
+      pedidosSnap.forEach((doc) => {
+        totalAtual += doc.data().quantidade;
+      });
+
+      const limite = lote.data().limite;
+      if (totalAtual + quantidade > limite) {
+        alert("Limite de pães atingido para hoje.");
+        return;
+      }
+
+      let url = "";
+      if (comprovante) {
+        const fileRef = ref(storage, `comprovantes/${Date.now()}_${comprovante.name}`);
+        await uploadBytes(fileRef, comprovante);
+        url = await getDownloadURL(fileRef);
+      }
+
+      await addDoc(pedidosRef, {
+        nome,
+        apto,
+        torre,
+        quantidade,
+        data: Timestamp.now(),
+        comprovanteUrl: url,
+        loteId: lote.id,
+        viaZap: false
+      });
+
+      document.getElementById("status").innerText = "Pedido enviado com sucesso!";
+      document.getElementById("pedidoForm").reset();
+    });
+  </script>
+</body>
+</html>
