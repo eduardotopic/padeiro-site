@@ -30,7 +30,7 @@
     <input type="number" id="quantidade" min="1" max="10" required />
     <label>Comprovante (imagem ou PDF):</label>
     <input type="file" id="comprovante" accept="image/*,application/pdf" />
-    <button type="submit" id="btnEnviar">Enviar Pedido</button>
+    <button type="submit">Enviar Pedido</button>
   </form>
 
   <div id="status"></div>
@@ -65,12 +65,20 @@
 
     async function carregarLotes() {{
       const lotesRef = collection(db, "lotes");
-      const snap = await getDocs(query(lotesRef, orderBy("data")));
-      loteSelect.innerHTML = "";
+      
+      try {
+        const snap = await getDocs(query(lotesRef, orderBy("data")));
+    
+      
+      loteSelect.innerHTML = "<option>Carregando lotes...</option>";
+    
 
       let selectedIndex = 0;
       let i = 0;
-      snap.forEach((doc) => {{
+      
+      loteSelect.innerHTML = "";
+      snap.forEach((doc) => {
+    {
         const lote = doc.data();
         const opt = document.createElement("option");
         opt.value = doc.id;
@@ -84,7 +92,13 @@
         lotesMap[doc.id] = lote;
         i++;
       }});
-      loteSelect.selectedIndex = selectedIndex;
+      
+        loteSelect.selectedIndex = selectedIndex;
+      } catch (err) {
+        console.error("Erro ao carregar lotes:", err);
+        loteSelect.innerHTML = "<option>Erro ao carregar datas</option>";
+      }
+    
     }}
 
     carregarLotes();
@@ -93,12 +107,7 @@
     document.getElementById("apto").value = localStorage.getItem("apto") || "";
     document.getElementById("torre").value = localStorage.getItem("torre") || "";
 
-    
-    const btnEnviar = document.getElementById("btnEnviar");
-    document.getElementById("pedidoForm").addEventListener("submit", async (e) => {
-      btnEnviar.disabled = true;
-      document.getElementById("status").innerText = "⏳ Enviando pedido...";
-    {
+    document.getElementById("pedidoForm").addEventListener("submit", async (e) => {{
       e.preventDefault();
       const nome = document.getElementById("nome").value;
       const apto = document.getElementById("apto").value;
@@ -114,7 +123,10 @@
       const pedidosRef = collection(db, "pedidos");
       const snap = await getDocs(query(pedidosRef));
       let totalAtual = 0;
-      snap.forEach((doc) => {{
+      
+      loteSelect.innerHTML = "";
+      snap.forEach((doc) => {
+    {
         const p = doc.data();
         if (p.loteId === loteId) {{
           totalAtual += p.quantidade;
@@ -129,10 +141,7 @@
 
       let url = "";
       if (comprovante) {{
-        
-      const nomeLimpo = comprovante.name.replace(/[^a-zA-Z0-9._-]/g, "_");
-      const fileRef = ref(storage, `comprovantes/${Date.now()}_${nomeLimpo}`);
-    
+        const fileRef = ref(storage, `comprovantes/${Date.now()}_${comprovante.name}`);
         await uploadBytes(fileRef, comprovante);
         url = await getDownloadURL(fileRef);
       }}
@@ -148,10 +157,7 @@
         viaZap: false
       }});
 
-      
-      btnEnviar.disabled = false;
-      document.getElementById("status").innerText = "✅ Pedido enviado com sucesso!";
-    
+      document.getElementById("status").innerText = "Pedido enviado!";
       document.getElementById("pedidoForm").reset();
       carregarLotes();
     }});
