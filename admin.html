@@ -1,107 +1,139 @@
-
+<!-- admin.html atualizado -->
 <!DOCTYPE html>
-<html lang="pt-BR">
+<html lang="pt-br">
 <head>
   <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
   <title>Painel do Padeiro</title>
-  <script src="https://www.gstatic.com/firebasejs/10.12.0/firebase-app.js"></script>
-  <script src="https://www.gstatic.com/firebasejs/10.12.0/firebase-auth.js"></script>
-  <script src="https://www.gstatic.com/firebasejs/10.12.0/firebase-firestore.js"></script>
   <style>
-    body { font-family: Arial, sans-serif; padding: 20px; }
-    input, button, label { display: block; margin: 10px 0; width: 300px; }
-    #pedidosTable { margin-top: 30px; border-collapse: collapse; width: 100%; }
-    th, td { border: 1px solid #ccc; padding: 8px; }
+    body {
+      font-family: Arial, sans-serif;
+      margin: 40px auto;
+      max-width: 800px;
+      padding: 20px;
+      background: #f1f1f1;
+      border-radius: 10px;
+      box-shadow: 0 0 10px rgba(0,0,0,0.1);
+    }
+    h1 {
+      text-align: center;
+    }
+    select, table {
+      width: 100%;
+      margin: 20px 0;
+      padding: 10px;
+      border-radius: 5px;
+    }
+    table {
+      border-collapse: collapse;
+      background: white;
+    }
+    th, td {
+      padding: 12px;
+      border: 1px solid #ddd;
+      text-align: left;
+    }
+    tr:nth-child(even) {
+      background-color: #f9f9f9;
+    }
+    .highlight {
+      background-color: #d1e7dd !important;
+    }
   </style>
 </head>
 <body>
-  <h2>Painel do Padeiro</h2>
+  <h1>Painel do Padeiro</h1>
+  <label for="filtroData">Filtrar por data:</label>
+  <select id="filtroData"></select>
 
-  <div id="loginSection">
-    <button onclick="login()">Entrar com Google</button>
-  </div>
-
-  <div id="painel" style="display:none;">
-    <h3>Criar novo lote de produção</h3>
-    <label>Data (AAAA-MM-DD):</label>
-    <input type="text" id="dataLote" placeholder="2025-06-08" />
-    <label>Limite de pães:</label>
-    <input type="number" id="limiteLote" />
-    <button onclick="criarLote()">Criar Lote</button>
-
-    <h3>Pedidos do dia</h3>
-    <button onclick="carregarPedidos()">Atualizar pedidos</button>
-    <table id="pedidosTable">
-      <thead>
-        <tr><th>Nome</th><th>Apto</th><th>Torre</th><th>Qtd</th><th>Comprovante</th></tr>
-      </thead>
-      <tbody id="listaPedidos"></tbody>
-    </table>
-  </div>
+  <table id="tabelaPedidos">
+    <thead>
+      <tr>
+        <th>Nome</th>
+        <th>Ap</th>
+        <th>Torre</th>
+        <th>Qtd</th>
+        <th>Status</th>
+        <th>Comprovante</th>
+      </tr>
+    </thead>
+    <tbody></tbody>
+  </table>
 
   <script type="module">
-    import { initializeApp } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-app.js";
-    import { getFirestore, collection, addDoc, getDocs, query, where } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-firestore.js";
-    import { getAuth, signInWithPopup, GoogleAuthProvider } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-auth.js";
+    import { initializeApp } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-app.js";
+    import {
+      getFirestore, collection, query, where, orderBy, getDocs
+    } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-firestore.js";
 
     const firebaseConfig = {
-      apiKey: "AIzaSyDlXbLRh3O6xqSDnU-If-z0lbfuYgLm8Rg",
+      apiKey: "SUA_API_KEY",
       authDomain: "projeto-padeiro.firebaseapp.com",
       projectId: "projeto-padeiro",
       storageBucket: "projeto-padeiro.appspot.com",
-      messagingSenderId: "905130125554",
-      appId: "1:905130125554:web:225a7de84f2545043a086b"
+      messagingSenderId: "...",
+      appId: "..."
     };
 
     const app = initializeApp(firebaseConfig);
     const db = getFirestore(app);
-    const auth = getAuth(app);
-    const provider = new GoogleAuthProvider();
 
-    window.login = async () => {
-      try {
-        const result = await signInWithPopup(auth, provider);
-        document.getElementById("loginSection").style.display = "none";
-        document.getElementById("painel").style.display = "block";
-      } catch (error) {
-        alert("Erro no login: " + error.message);
-      }
-    };
+    const filtro = document.getElementById('filtroData');
+    const tabela = document.querySelector('#tabelaPedidos tbody');
 
-    window.criarLote = async () => {
-      const data = document.getElementById("dataLote").value;
-      const limite = parseInt(document.getElementById("limiteLote").value);
-
-      if (!data || isNaN(limite)) {
-        alert("Preencha todos os campos corretamente.");
-        return;
-      }
-
-      await addDoc(collection(db, "lotes"), { data, limite });
-      alert("Lote criado com sucesso!");
-      document.getElementById("dataLote").value = "";
-      document.getElementById("limiteLote").value = "";
-    };
-
-    window.carregarPedidos = async () => {
+    async function carregarDatas() {
+      const snap = await getDocs(query(collection(db, 'lotes'), orderBy('data')));
       const hoje = new Date().toISOString().split('T')[0];
-      const lotesSnap = await getDocs(query(collection(db, "lotes"), where("data", "==", hoje)));
-      if (lotesSnap.empty) {
-        alert("Nenhum lote cadastrado para hoje.");
-        return;
-      }
+      let dataMaisProxima = null;
+      let menorDiff = Infinity;
+      const datas = [];
 
-      const lote = lotesSnap.docs[0];
-      const pedidosSnap = await getDocs(query(collection(db, "pedidos"), where("loteId", "==", lote.id)));
-      const tbody = document.getElementById("listaPedidos");
-      tbody.innerHTML = "";
-
-      pedidosSnap.forEach(doc => {
-        const p = doc.data();
-        const link = p.comprovanteUrl ? `<a href="${p.comprovanteUrl}" target="_blank">Ver</a>` : "—";
-        tbody.innerHTML += `<tr><td>${p.nome}</td><td>${p.apto}</td><td>${p.torre}</td><td>${p.quantidade}</td><td>${link}</td></tr>`;
+      snap.forEach(doc => {
+        const data = doc.data().data;
+        datas.push(data);
+        const diff = Math.abs(new Date(data) - new Date());
+        if (diff < menorDiff) {
+          menorDiff = diff;
+          dataMaisProxima = data;
+        }
       });
-    };
+
+      datas.forEach(data => {
+        const opt = document.createElement('option');
+        opt.value = data;
+        opt.textContent = data;
+        if (data === dataMaisProxima) {
+          opt.selected = true;
+        }
+        filtro.appendChild(opt);
+      });
+
+      carregarPedidos(dataMaisProxima);
+    }
+
+    async function carregarPedidos(data) {
+      tabela.innerHTML = '';
+      const q = query(collection(db, 'pedidos'), where('data', '==', data), orderBy('timestamp'));
+      const snap = await getDocs(q);
+
+      snap.forEach(doc => {
+        const p = doc.data();
+        const tr = document.createElement('tr');
+        tr.innerHTML = `
+          <td>${p.nome}</td>
+          <td>${p.apartamento}</td>
+          <td>${p.torre}</td>
+          <td>${p.quantidade}</td>
+          <td>${p.status}</td>
+          <td>${p.comprovante ? `<a href="${p.comprovante}" target="_blank">Ver</a>` : '-'}</td>
+        `;
+        tabela.appendChild(tr);
+      });
+    }
+
+    filtro.addEventListener('change', () => carregarPedidos(filtro.value));
+
+    carregarDatas();
   </script>
 </body>
 </html>
