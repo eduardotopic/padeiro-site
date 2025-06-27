@@ -1,166 +1,167 @@
-
+<!-- index.html atualizado -->
 <!DOCTYPE html>
-<html lang="pt-BR">
+<html lang="pt-br">
 <head>
   <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
   <title>Pedido de Pães</title>
-  <script src="https://www.gstatic.com/firebasejs/10.12.0/firebase-app.js"></script>
-  <script src="https://www.gstatic.com/firebasejs/10.12.0/firebase-auth.js"></script>
-  <script src="https://www.gstatic.com/firebasejs/10.12.0/firebase-firestore.js"></script>
-  <script src="https://www.gstatic.com/firebasejs/10.12.0/firebase-storage.js"></script>
   <style>
-    body { font-family: Arial, sans-serif; padding: 20px; }
-    input, button, label, select { display: block; margin: 10px 0; width: 300px; }
-    option[data-hoje="true"] { background-color: #dff0d8; font-weight: bold; }
+    body {
+      font-family: Arial, sans-serif;
+      margin: 40px auto;
+      max-width: 500px;
+      padding: 20px;
+      border-radius: 10px;
+      background: #f7f7f7;
+      box-shadow: 0 0 10px rgba(0,0,0,0.1);
+    }
+    h1 {
+      text-align: center;
+      color: #333;
+    }
+    label {
+      display: block;
+      margin-top: 20px;
+      font-weight: bold;
+    }
+    input, select, button {
+      width: 100%;
+      padding: 10px;
+      margin-top: 5px;
+      border: 1px solid #ccc;
+      border-radius: 5px;
+      box-sizing: border-box;
+    }
+    button {
+      background-color: #4CAF50;
+      color: white;
+      font-size: 16px;
+      margin-top: 20px;
+    }
+    .highlight {
+      background-color: #d1e7dd;
+      font-weight: bold;
+    }
   </style>
 </head>
 <body>
-  <h2>Pedido de Pães</h2>
-  <form id="pedidoForm">
-    <label>Escolha o dia:</label>
-    <select id="loteSelect"></select>
+  <h1>Pedido de Pães</h1>
+  <label for="dataSelect">Escolha o dia:</label>
+  <select id="dataSelect"></select>
 
-    <label>Nome:</label>
-    <input type="text" id="nome" required />
-    <label>Apartamento:</label>
-    <input type="text" id="apto" required />
-    <label>Torre:</label>
-    <input type="text" id="torre" required />
-    <label>Quantidade:</label>
-    <input type="number" id="quantidade" min="1" max="10" required />
-    <label>Comprovante (imagem ou PDF):</label>
-    <input type="file" id="comprovante" accept="image/*,application/pdf" />
-    <button type="submit">Enviar Pedido</button>
-  </form>
+  <label for="nome">Nome:</label>
+  <input type="text" id="nome" />
 
-  <div id="status"></div>
+  <label for="apartamento">Apartamento:</label>
+  <input type="text" id="apartamento" />
+
+  <label for="torre">Torre:</label>
+  <input type="text" id="torre" />
+
+  <label for="quantidade">Quantidade:</label>
+  <input type="number" id="quantidade" />
+
+  <label for="comprovante">Comprovante (imagem ou PDF):</label>
+  <input type="file" id="comprovante" />
+
+  <button onclick="enviarPedido()">Enviar Pedido</button>
 
   <script type="module">
-    import {{ initializeApp }} from "https://www.gstatic.com/firebasejs/10.12.0/firebase-app.js";
-    import {{ getFirestore, collection, getDocs, query, orderBy, addDoc, Timestamp }} from "https://www.gstatic.com/firebasejs/10.12.0/firebase-firestore.js";
-    import {{ getStorage, ref, uploadBytes, getDownloadURL }} from "https://www.gstatic.com/firebasejs/10.12.0/firebase-storage.js";
-    import {{ getAuth, signInAnonymously }} from "https://www.gstatic.com/firebasejs/10.12.0/firebase-auth.js";
+    import { initializeApp } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-app.js";
+    import {
+      getFirestore, collection, query, orderBy, getDocs, addDoc,
+      serverTimestamp
+    } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-firestore.js";
+    import {
+      getStorage, ref, uploadBytes, getDownloadURL
+    } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-storage.js";
 
-    const firebaseConfig = {{
-      apiKey: "AIzaSyDlXbLRh3O6xqSDnU-If-z0lbfuYgLm8Rg",
+    const firebaseConfig = {
+      apiKey: "SUA_API_KEY",
       authDomain: "projeto-padeiro.firebaseapp.com",
       projectId: "projeto-padeiro",
       storageBucket: "projeto-padeiro.appspot.com",
-      messagingSenderId: "905130125554",
-      appId: "1:905130125554:web:225a7de84f2545043a086b"
-    }};
+      messagingSenderId: "...",
+      appId: "..."
+    };
 
     const app = initializeApp(firebaseConfig);
     const db = getFirestore(app);
     const storage = getStorage(app);
-    const auth = getAuth(app);
 
-    signInAnonymously(auth).catch((error) => {{
-      console.error("Erro login anônimo:", error.message);
-    }});
+    const nomeInput = document.getElementById('nome');
+    const apInput = document.getElementById('apartamento');
+    const torreInput = document.getElementById('torre');
+    const dataSelect = document.getElementById('dataSelect');
 
-    const loteSelect = document.getElementById("loteSelect");
-    const hojeStr = new Date().toISOString().split('T')[0];
-    let lotesMap = {{}};
+    async function carregarDatas() {
+      const q = query(collection(db, 'lotes'), orderBy('data'));
+      const snapshot = await getDocs(q);
+      const hoje = new Date().toISOString().split('T')[0];
 
-    async function carregarLotes() {{
-      const lotesRef = collection(db, "lotes");
-      
-      try {
-        const snap = await getDocs(query(lotesRef, orderBy("data")));
-    
-      
-      loteSelect.innerHTML = "<option>Carregando lotes...</option>";
-    
+      snapshot.forEach(doc => {
+        const data = doc.data().data;
+        const option = document.createElement('option');
+        option.value = data;
+        option.textContent = data;
+        if (data === hoje) {
+          option.classList.add('highlight');
+          option.selected = true;
+        }
+        dataSelect.appendChild(option);
+      });
+    }
 
-      let selectedIndex = 0;
-      let i = 0;
-      
-      loteSelect.innerHTML = "";
-      snap.forEach((doc) => {
-    {
-        const lote = doc.data();
-        const opt = document.createElement("option");
-        opt.value = doc.id;
-        opt.text = `${{lote.data}} - até ${{lote.limite}} pães`;
-        if (lote.data === hojeStr) {{
-          opt.text += " (HOJE)";
-          opt.dataset.hoje = "true";
-          selectedIndex = i;
-        }}
-        loteSelect.appendChild(opt);
-        lotesMap[doc.id] = lote;
-        i++;
-      }});
-      
-        loteSelect.selectedIndex = selectedIndex;
-      } catch (err) {
-        console.error("Erro ao carregar lotes:", err);
-        loteSelect.innerHTML = "<option>Erro ao carregar datas</option>";
-      }
-    
-    }}
+    carregarDatas();
 
-    carregarLotes();
+    // preenchimento automático
+    window.onload = () => {
+      nomeInput.value = localStorage.getItem('nome') || '';
+      apInput.value = localStorage.getItem('apartamento') || '';
+      torreInput.value = localStorage.getItem('torre') || '';
+    };
 
-    document.getElementById("nome").value = localStorage.getItem("nome") || "";
-    document.getElementById("apto").value = localStorage.getItem("apto") || "";
-    document.getElementById("torre").value = localStorage.getItem("torre") || "";
+    async function enviarPedido() {
+      const nome = nomeInput.value;
+      const ap = apInput.value;
+      const torre = torreInput.value;
+      const qtd = document.getElementById('quantidade').value;
+      const dataSelecionada = dataSelect.value;
+      const arquivo = document.getElementById('comprovante').files[0];
 
-    document.getElementById("pedidoForm").addEventListener("submit", async (e) => {{
-      e.preventDefault();
-      const nome = document.getElementById("nome").value;
-      const apto = document.getElementById("apto").value;
-      const torre = document.getElementById("torre").value;
-      const quantidade = parseInt(document.getElementById("quantidade").value);
-      const comprovante = document.getElementById("comprovante").files[0];
-      const loteId = loteSelect.value;
-
-      localStorage.setItem("nome", nome);
-      localStorage.setItem("apto", apto);
-      localStorage.setItem("torre", torre);
-
-      const pedidosRef = collection(db, "pedidos");
-      const snap = await getDocs(query(pedidosRef));
-      let totalAtual = 0;
-      
-      loteSelect.innerHTML = "";
-      snap.forEach((doc) => {
-    {
-        const p = doc.data();
-        if (p.loteId === loteId) {{
-          totalAtual += p.quantidade;
-        }}
-      }});
-
-      const limite = lotesMap[loteId].limite;
-      if (totalAtual + quantidade > limite) {{
-        alert("Limite excedido para esse lote.");
+      if (!nome || !ap || !torre || !qtd || !dataSelecionada) {
+        alert("Preencha todos os campos obrigatórios.");
         return;
-      }}
+      }
 
-      let url = "";
-      if (comprovante) {{
-        const fileRef = ref(storage, `comprovantes/${Date.now()}_${comprovante.name}`);
-        await uploadBytes(fileRef, comprovante);
-        url = await getDownloadURL(fileRef);
-      }}
+      // salvar dados locais
+      localStorage.setItem('nome', nome);
+      localStorage.setItem('apartamento', ap);
+      localStorage.setItem('torre', torre);
 
-      await addDoc(pedidosRef, {{
-        nome,
-        apto,
-        torre,
-        quantidade,
-        data: Timestamp.now(),
-        comprovanteUrl: url,
-        loteId: loteId,
-        viaZap: false
-      }});
+      let url = '';
+      let status = 'pendente';
 
-      document.getElementById("status").innerText = "Pedido enviado!";
-      document.getElementById("pedidoForm").reset();
-      carregarLotes();
-    }});
+      if (arquivo) {
+        const nomeLimpo = arquivo.name.replace(/\s+/g, '_');
+        const storageRef = ref(storage, `comprovantes/${Date.now()}_${nomeLimpo}`);
+        const snapshot = await uploadBytes(storageRef, arquivo);
+        url = await getDownloadURL(snapshot.ref);
+        status = 'confirmado';
+      }
+
+      await addDoc(collection(db, 'pedidos'), {
+        nome, apartamento: ap, torre, quantidade: qtd,
+        data: dataSelecionada,
+        comprovante: url,
+        status,
+        timestamp: serverTimestamp()
+      });
+
+      alert("Pedido enviado com sucesso!");
+      document.getElementById('quantidade').value = '';
+      document.getElementById('comprovante').value = '';
+    }
   </script>
 </body>
 </html>
