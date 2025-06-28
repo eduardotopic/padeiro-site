@@ -105,9 +105,9 @@
 
       const data = form.data.value;
       const nome = form.nome.value;
-      const apartamento = form.apartamento.value;
+      const apartamento = Number(form.apartamento.value);
       const torre = form.torre.value;
-      const quantidade = parseInt(form.quantidade.value, 10);
+      const quantidade = Number(form.quantidade.value);
       const arquivo = form.comprovante.files[0];
 
       let comprovanteUrl = "";
