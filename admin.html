@@ -83,6 +83,8 @@
 
     async function carregarDatas() {
       const snap = await getDocs(query(collection(db, 'lotes'), orderBy('data')));
+      console.log("Lotes encontrados:", snap.docs.map(d => d.data()));
+
       const hoje = new Date().toISOString().split('T')[0];
       let dataMaisProxima = null;
       let menorDiff = Infinity;
