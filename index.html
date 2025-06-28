@@ -1,220 +1,138 @@
-<!-- index.html atualizado -->
 <!DOCTYPE html>
-<html lang="pt-br">
+<html lang="pt-BR">
 <head>
-  <meta charset="UTF-8" />
-  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>Pedido de Pães</title>
   <style>
     body {
       font-family: Arial, sans-serif;
-      margin: 40px auto;
-      max-width: 500px;
+      background: #f5f5f5;
       padding: 20px;
-      border-radius: 10px;
-      background: #f7f7f7;
-      box-shadow: 0 0 10px rgba(0,0,0,0.1);
+      display: flex;
+      justify-content: center;
     }
-    h1 {
+    form {
+      background: #fff;
+      padding: 30px;
+      border-radius: 8px;
+      box-shadow: 0 0 10px rgba(0,0,0,0.1);
+      width: 100%;
+      max-width: 500px;
+    }
+    h2 {
       text-align: center;
-      color: #333;
     }
     label {
       display: block;
-      margin-top: 20px;
-      font-weight: bold;
+      margin-top: 15px;
     }
-    input, select, button {
+    input, select {
       width: 100%;
       padding: 10px;
       margin-top: 5px;
       border: 1px solid #ccc;
       border-radius: 5px;
-      box-sizing: border-box;
     }
     button {
-      background-color: #4CAF50;
-      color: white;
-      font-size: 16px;
       margin-top: 20px;
+      padding: 12px;
+      background: #28a745;
+      color: white;
+      border: none;
+      width: 100%;
+      font-size: 16px;
+      border-radius: 5px;
+      cursor: pointer;
     }
-    .highlight {
-      background-color: #d1e7dd;
-      font-weight: bold;
+    button:hover {
+      background: #218838;
     }
   </style>
 </head>
 <body>
-  <h1>Pedido de Pães</h1>
-  <label for="dataSelect">Escolha o dia:</label>
-  <select id="dataSelect"></select>
 
-  <label for="nome">Nome:</label>
-  <input type="text" id="nome" />
+  <form id="pedidoForm">
+    <h2>Pedido de Pães</h2>
 
-  <label for="apartamento">Apartamento:</label>
-  <input type="text" id="apartamento" />
+    <label for="data">Escolha o dia:</label>
+    <input type="date" id="data" name="data" required>
 
-  <label for="torre">Torre:</label>
-  <input type="text" id="torre" />
+    <label for="nome">Nome:</label>
+    <input type="text" id="nome" name="nome" required>
 
-  <label for="quantidade">Quantidade:</label>
-  <input type="number" id="quantidade" />
+    <label for="apartamento">Apartamento:</label>
+    <input type="number" id="apartamento" name="apartamento" required>
 
-  <label for="comprovante">Comprovante (imagem ou PDF):</label>
-  <input type="file" id="comprovante" />
+    <label for="torre">Torre:</label>
+    <input type="text" id="torre" name="torre" required>
 
-  <button onclick="enviarPedido()">Enviar Pedido</button>
+    <label for="quantidade">Quantidade:</label>
+    <input type="number" id="quantidade" name="quantidade" min="1" required>
+
+    <label for="comprovante">Comprovante (imagem ou PDF):</label>
+    <input type="file" id="comprovante" name="comprovante" accept="image/*,.pdf">
+
+    <button type="submit">Enviar Pedido</button>
+  </form>
 
   <script type="module">
     import { initializeApp } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-app.js";
     import {
-      getFirestore, collection, query, orderBy, getDocs, addDoc,
-      serverTimestamp
+      getFirestore, collection, addDoc, serverTimestamp
     } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-firestore.js";
     import {
       getStorage, ref, uploadBytes, getDownloadURL
     } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-storage.js";
 
     const firebaseConfig = {
-      apiKey: "SUA_API_KEY",
+      apiKey: "AIzaSyD1XbLRh3O6xqSDnU-If-z0IbfuYgLm8Rg",
       authDomain: "projeto-padeiro.firebaseapp.com",
       projectId: "projeto-padeiro",
       storageBucket: "projeto-padeiro.appspot.com",
-      messagingSenderId: "...",
-      appId: "..."
+      messagingSenderId: "905130125554",
+      appId: "1:905130125554:web:225a7de84f2545043a086b"
     };
 
     const app = initializeApp(firebaseConfig);
     const db = getFirestore(app);
     const storage = getStorage(app);
 
-    const nomeInput = document.getElementById('nome');
-    const apInput = document.getElementById('apartamento');
-    const torreInput = document.getElementById('torre');
-    const dataSelect = document.getElementById('dataSelect');
+    const form = document.getElementById('pedidoForm');
 
-    async function carregarDatas() {
-      const q = query(collection(db, 'lotes'), orderBy('data'));
-      const snapshot = await getDocs(q);
-      const hoje = new Date().toISOString().split('T')[0];
+    form.addEventListener('submit', async (e) => {
+      e.preventDefault();
 
-      snapshot.forEach(doc => {
-        const data = doc.data().data;
-        const option = document.createElement('option');
-        option.value = data;
-        option.textContent = data;
-        if (data === hoje) {
-          option.classList.add('highlight');
-          option.selected = true;
-        }
-        dataSelect.appendChild(option);
-      });
-    }
+      const data = form.data.value;
+      const nome = form.nome.value;
+      const apartamento = form.apartamento.value;
+      const torre = form.torre.value;
+      const quantidade = parseInt(form.quantidade.value, 10);
+      const arquivo = form.comprovante.files[0];
 
-    carregarDatas();
-
-    // preenchimento automático
-    window.onload = () => {
-      nomeInput.value = localStorage.getItem('nome') || '';
-      apInput.value = localStorage.getItem('apartamento') || '';
-      torreInput.value = localStorage.getItem('torre') || '';
-    };
-
-    async function enviarPedido() {
-      const nome = nomeInput.value;
-      const ap = apInput.value;
-      const torre = torreInput.value;
-      const qtd = document.getElementById('quantidade').value;
-      const dataSelecionada = dataSelect.value;
-      const arquivo = document.getElementById('comprovante').files[0];
-
-      if (!nome || !ap || !torre || !qtd || !dataSelecionada) {
-        alert("Preencha todos os campos obrigatórios.");
-        return;
-      }
-
-      // salvar dados locais
-      localStorage.setItem('nome', nome);
-      localStorage.setItem('apartamento', ap);
-      localStorage.setItem('torre', torre);
-
-      let url = '';
-      let status = 'pendente';
+      let comprovanteUrl = "";
 
       if (arquivo) {
-        const nomeLimpo = arquivo.name.replace(/\s+/g, '_');
-        const storageRef = ref(storage, `comprovantes/${Date.now()}_${nomeLimpo}`);
+        const storageRef = ref(storage, `comprovantes/${data}-${nome}-${Date.now()}-${arquivo.name}`);
         const snapshot = await uploadBytes(storageRef, arquivo);
-        url = await getDownloadURL(snapshot.ref);
-        status = 'confirmado';
+        comprovanteUrl = await getDownloadURL(snapshot.ref);
       }
 
-      await addDoc(collection(db, 'pedidos'), {
-        nome, apartamento: ap, torre, quantidade: qtd,
-        data: dataSelecionada,
-        comprovante: url,
-        status,
+      await addDoc(collection(db, "pedidos"), {
+        data,
+        nome,
+        apartamento,
+        torre,
+        quantidade,
+        status: "pendente",
+        comprovante: comprovanteUrl,
         timestamp: serverTimestamp()
       });
 
       alert("Pedido enviado com sucesso!");
-      document.getElementById('quantidade').value = '';
-      document.getElementById('comprovante').value = '';
-    }
-  </script>
-  <script type="module">
-  import { initializeApp } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-app.js";
-  import {
-    getFirestore, collection, addDoc, serverTimestamp
-  } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-firestore.js";
-  import {
-    getStorage, ref, uploadBytes, getDownloadURL
-  } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-storage.js";
-
-  const firebaseConfig = {
-    apiKey: "SUA_API_KEY",
-    authDomain: "projeto-padeiro.firebaseapp.com",
-    projectId: "projeto-padeiro",
-    storageBucket: "projeto-padeiro.appspot.com",
-    messagingSenderId: "...",
-    appId: "..."
-  };
-
-  const app = initializeApp(firebaseConfig);
-  const db = getFirestore(app);
-  const storage = getStorage(app);
-
-  window.enviarPedido = async () => {
-    const data = document.querySelector('select').value;
-    const nome = document.querySelector('input[name="nome"]').value;
-    const apartamento = document.querySelector('input[name="apartamento"]').value;
-    const torre = document.querySelector('input[name="torre"]').value;
-    const quantidade = document.querySelector('input[name="quantidade"]').value;
-    const comprovante = document.querySelector('input[type="file"]').files[0];
-
-    let urlComprovante = "";
-
-    if (comprovante) {
-      const storageRef = ref(storage, `comprovantes/${Date.now()}_${comprovante.name}`);
-      await uploadBytes(storageRef, comprovante);
-      urlComprovante = await getDownloadURL(storageRef);
-    }
-
-    await addDoc(collection(db, 'pedidos'), {
-      data,
-      nome,
-      apartamento,
-      torre,
-      quantidade,
-      comprovante: urlComprovante,
-      status: "pendente",
-      timestamp: serverTimestamp()
+      form.reset();
     });
-
-    alert("Pedido enviado com sucesso!");
-  };
-</script>
+  </script>
 
 </body>
 </html>
