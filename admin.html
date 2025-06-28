@@ -113,34 +113,40 @@
       carregarPedidos(dataMaisProxima);
     }
 
-   async function carregarPedidos(dataSelecionada) {
+  async function carregarPedidos(dataSelecionada) {
   tabela.innerHTML = '';
 
-  // 1. Buscar todos os lotes com a data igual à data selecionada
-  const lotesQuery = query(collection(db, 'lotes'), where('data', '==', dataSelecionada));
-  const lotesSnap = await getDocs(lotesQuery);
-
-  // 2. Para cada lote encontrado, acessar a subcoleção "pedidos"
-  for (const loteDoc of lotesSnap.docs) {
-    const pedidosRef = collection(db, `lotes/${loteDoc.id}/pedidos`);
-    const pedidosSnap = await getDocs(pedidosRef);
-
-    // 3. Adicionar os pedidos à tabela
-    pedidosSnap.forEach(doc => {
-      const p = doc.data();
-      const tr = document.createElement('tr');
-      tr.innerHTML = `
-        <td>${p.nome}</td>
-        <td>${p.apartamento}</td>
-        <td>${p.torre}</td>
-        <td>${p.quantidade}</td>
-        <td>${p.status || 'pendente'}</td>
-        <td>${p.comprovante ? `<a href="${p.comprovante}" target="_blank">Ver</a>` : '-'}</td>
-      `;
-      tabela.appendChild(tr);
-    });
+  // Encontrar o ID do documento do lote com a data selecionada
+  const lotesSnap = await getDocs(query(collection(db, 'lotes'), where('data', '==', dataSelecionada)));
+  if (lotesSnap.empty) {
+    tabela.innerHTML = `<tr><td colspan="6">Nenhum pedido encontrado.</td></tr>`;
+    return;
   }
+
+  const loteDoc = lotesSnap.docs[0]; // assume apenas um documento por data
+  const pedidosRef = collection(db, `lotes/${loteDoc.id}/pedidos`);
+  const pedidosSnap = await getDocs(query(pedidosRef, orderBy('timestamp')));
+
+  if (pedidosSnap.empty) {
+    tabela.innerHTML = `<tr><td colspan="6">Nenhum pedido encontrado.</td></tr>`;
+    return;
+  }
+
+  pedidosSnap.forEach(doc => {
+    const p = doc.data();
+    const tr = document.createElement('tr');
+    tr.innerHTML = `
+      <td>${p.nome}</td>
+      <td>${p.apartamento}</td>
+      <td>${p.torre}</td>
+      <td>${p.quantidade}</td>
+      <td>${p.status || 'pendente'}</td>
+      <td>${p.comprovante ? `<a href="${p.comprovante}" target="_blank">Ver</a>` : '-'}</td>
+    `;
+    tabela.appendChild(tr);
+  });
 }
+
 
 
 
