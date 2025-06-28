@@ -1,4 +1,3 @@
-<!-- admin.html atualizado -->
 <!DOCTYPE html>
 <html lang="pt-br">
 <head>
@@ -9,7 +8,7 @@
     body {
       font-family: Arial, sans-serif;
       margin: 40px auto;
-      max-width: 800px;
+      max-width: 900px;
       padding: 20px;
       background: #f1f1f1;
       border-radius: 10px;
@@ -35,9 +34,6 @@
     }
     tr:nth-child(even) {
       background-color: #f9f9f9;
-    }
-    .highlight {
-      background-color: #d1e7dd !important;
     }
   </style>
 </head>
@@ -67,12 +63,12 @@
     } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-firestore.js";
 
     const firebaseConfig = {
-      apiKey: "SUA_API_KEY",
+      apiKey: "AIzaSyD1XbLRh3O6xqSDnU-If-z0IbfuYgLm8Rg",
       authDomain: "projeto-padeiro.firebaseapp.com",
       projectId: "projeto-padeiro",
       storageBucket: "projeto-padeiro.appspot.com",
-      messagingSenderId: "...",
-      appId: "..."
+      messagingSenderId: "905130125554",
+      appId: "1:905130125554:web:225a7de84f2545043a086b"
     };
 
     const app = initializeApp(firebaseConfig);
@@ -83,8 +79,6 @@
 
     async function carregarDatas() {
       const snap = await getDocs(query(collection(db, 'lotes'), orderBy('data')));
-      console.log("Lotes encontrados:", snap.docs.map(d => d.data()));
-
       const hoje = new Date().toISOString().split('T')[0];
       let dataMaisProxima = null;
       let menorDiff = Infinity;
@@ -113,45 +107,27 @@
       carregarPedidos(dataMaisProxima);
     }
 
-  async function carregarPedidos(dataSelecionada) {
-  tabela.innerHTML = '';
+    async function carregarPedidos(data) {
+      tabela.innerHTML = '';
+      const q = query(collection(db, 'pedidos'), where('data', '==', data), orderBy('timestamp'));
+      const snap = await getDocs(q);
 
-  // Encontrar o ID do documento do lote com a data selecionada
-  const lotesSnap = await getDocs(query(collection(db, 'lotes'), where('data', '==', dataSelecionada)));
-  if (lotesSnap.empty) {
-    tabela.innerHTML = `<tr><td colspan="6">Nenhum pedido encontrado.</td></tr>`;
-    return;
-  }
-
-  const loteDoc = lotesSnap.docs[0]; // assume apenas um documento por data
-  const pedidosRef = collection(db, `lotes/${loteDoc.id}/pedidos`);
-  const pedidosSnap = await getDocs(query(pedidosRef, orderBy('timestamp')));
-
-  if (pedidosSnap.empty) {
-    tabela.innerHTML = `<tr><td colspan="6">Nenhum pedido encontrado.</td></tr>`;
-    return;
-  }
-
-  pedidosSnap.forEach(doc => {
-    const p = doc.data();
-    const tr = document.createElement('tr');
-    tr.innerHTML = `
-      <td>${p.nome}</td>
-      <td>${p.apartamento}</td>
-      <td>${p.torre}</td>
-      <td>${p.quantidade}</td>
-      <td>${p.status || 'pendente'}</td>
-      <td>${p.comprovante ? `<a href="${p.comprovante}" target="_blank">Ver</a>` : '-'}</td>
-    `;
-    tabela.appendChild(tr);
-  });
-}
-
-
-
+      snap.forEach(doc => {
+        const p = doc.data();
+        const tr = document.createElement('tr');
+        tr.innerHTML = `
+          <td>${p.nome}</td>
+          <td>${p.apartamento}</td>
+          <td>${p.torre}</td>
+          <td>${p.quantidade}</td>
+          <td>${p.status}</td>
+          <td>${p.comprovante ? `<a href="${p.comprovante}" target="_blank">Ver</a>` : '-'}</td>
+        `;
+        tabela.appendChild(tr);
+      });
+    }
 
     filtro.addEventListener('change', () => carregarPedidos(filtro.value));
-
     carregarDatas();
   </script>
 </body>
