@@ -111,25 +111,31 @@
       carregarPedidos(dataMaisProxima);
     }
 
-    async function carregarPedidos(data) {
-      tabela.innerHTML = '';
-      const q = query(collection(db, 'pedidos'), where('data', '==', data), orderBy('timestamp'));
-      const snap = await getDocs(q);
+    async function carregarPedidos(dataSelecionada) {
+  tabela.innerHTML = '';
 
-      snap.forEach(doc => {
-        const p = doc.data();
-        const tr = document.createElement('tr');
-        tr.innerHTML = `
-          <td>${p.nome}</td>
-          <td>${p.apartamento}</td>
-          <td>${p.torre}</td>
-          <td>${p.quantidade}</td>
-          <td>${p.status}</td>
-          <td>${p.comprovante ? `<a href="${p.comprovante}" target="_blank">Ver</a>` : '-'}</td>
-        `;
-        tabela.appendChild(tr);
-      });
-    }
+  const lotesSnap = await getDocs(query(collection(db, 'lotes'), where('data', '==', dataSelecionada)));
+
+  for (const loteDoc of lotesSnap.docs) {
+    const pedidosRef = collection(db, `lotes/${loteDoc.id}/pedidos`);
+    const pedidosSnap = await getDocs(query(pedidosRef, orderBy('timestamp')));
+
+    pedidosSnap.forEach(doc => {
+      const p = doc.data();
+      const tr = document.createElement('tr');
+      tr.innerHTML = `
+        <td>${p.nome}</td>
+        <td>${p.apartamento}</td>
+        <td>${p.torre}</td>
+        <td>${p.quantidade}</td>
+        <td>${p.status}</td>
+        <td>${p.comprovante ? `<a href="${p.comprovante}" target="_blank">Ver</a>` : '-'}</td>
+      `;
+      tabela.appendChild(tr);
+    });
+  }
+}
+
 
     filtro.addEventListener('change', () => carregarPedidos(filtro.value));
 
