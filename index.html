@@ -48,6 +48,15 @@
     button:hover {
       background: #218838;
     }
+    #dataExibida {
+      font-weight: bold;
+      margin-top: 5px;
+      padding: 10px;
+      border: 1px solid #ccc;
+      border-radius: 5px;
+      background-color: #e9e9e9;
+      text-align: center;
+    }
   </style>
 </head>
 <body>
@@ -55,10 +64,9 @@
   <form id="pedidoForm">
     <h2>Pedido de Pães</h2>
 
-    <label for="data">Escolha o dia:</label>
-    <input type="date" id="data" name="data" required>
-
-    <label for="nome">Nome:</label>
+    <label for="dataExibida">Data do Pedido:</label>
+    <div id="dataExibida">Carregando data...</div>
+    <input type="hidden" id="data" name="data"> <label for="nome">Nome:</label>
     <input type="text" id="nome" name="nome" required>
 
     <label for="apartamento">Apartamento:</label>
@@ -79,7 +87,7 @@
   <script type="module">
     import { initializeApp } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-app.js";
     import {
-      getFirestore, collection, addDoc, serverTimestamp
+      getFirestore, collection, addDoc, serverTimestamp, query, where, orderBy, getDocs
     } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-firestore.js";
     import {
       getStorage, ref, uploadBytes, getDownloadURL
@@ -99,11 +107,52 @@
     const storage = getStorage(app);
 
     const form = document.getElementById('pedidoForm');
+    const dataExibidaDiv = document.getElementById('dataExibida');
+    const dataInputOculto = document.getElementById('data');
+
+    async function carregarProximaData() {
+      const hoje = new Date();
+      hoje.setHours(0, 0, 0, 0); // Zera a hora para comparação apenas da data
+
+      const q = query(
+        collection(db, 'lotes'),
+        orderBy('data')
+      );
+      const snap = await getDocs(q);
+
+      let proximaData = null;
+
+      snap.forEach(doc => {
+        const dataLote = doc.data().data; // A data deve estar no formato 'AAAA-MM-DD'
+        const dataLoteObj = new Date(dataLote + 'T00:00:00'); // Garante que a comparação seja apenas pela data
+
+        if (dataLoteObj > hoje) { // Verifica se a data do lote é estritamente superior ao dia atual
+          if (!proximaData || dataLoteObj < new Date(proximaData + 'T00:00:00')) {
+            proximaData = dataLote;
+          }
+        }
+      });
+
+      if (proximaData) {
+        dataExibidaDiv.textContent = proximaData;
+        dataInputOculto.value = proximaData;
+      } else {
+        dataExibidaDiv.textContent = "Nenhuma data futura disponível.";
+        dataInputOculto.value = ""; // Limpa o valor se não houver data
+        form.querySelector('button[type="submit"]').disabled = true; // Desabilita o botão de enviar
+        alert("Não há datas futuras disponíveis para pedidos no momento.");
+      }
+    }
 
     form.addEventListener('submit', async (e) => {
       e.preventDefault();
 
-      const data = form.data.value;
+      const data = dataInputOculto.value; // Pega a data do campo oculto
+      if (!data) {
+        alert("Não há data disponível para o pedido.");
+        return;
+      }
+
       const nome = form.nome.value;
       const apartamento = Number(form.apartamento.value);
       const torre = form.torre.value;
@@ -131,7 +180,12 @@
 
       alert("Pedido enviado com sucesso!");
       form.reset();
+      // Recarrega a próxima data após o envio bem-sucedido, caso a data atual tenha sido a única disponível
+      carregarProximaData();
     });
+
+    // Carrega a data assim que a página é carregada
+    carregarProximaData();
   </script>
 
 </body>
