@@ -3,7 +3,7 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>Painel do Padeiro</title>
+  <title>Controle de pedidos</title>
   <style>
     body {
       font-family: Arial, sans-serif;
@@ -38,7 +38,7 @@
   </style>
 </head>
 <body>
-  <h1>Painel do Padeiro</h1>
+  <h1>Controle de pedidos</h1>
   <label for="filtroData">Filtrar por data:</label>
   <select id="filtroData"></select>
 
@@ -79,38 +79,68 @@
 
     async function carregarDatas() {
       const snap = await getDocs(query(collection(db, 'lotes'), orderBy('data')));
-      const hoje = new Date().toISOString().split('T')[0];
-      let dataMaisProxima = null;
+      
+      const hoje = new Date();
+      hoje.setHours(0, 0, 0, 0); // Zera a hora para comparar apenas a data
+
+      let dataMaisProximaOuHoje = null;
       let menorDiff = Infinity;
-      const datas = [];
+      const datasDisponiveis = [];
 
       snap.forEach(doc => {
-        const data = doc.data().data;
-        datas.push(data);
-        const diff = Math.abs(new Date(data) - new Date());
-        if (diff < menorDiff) {
-          menorDiff = diff;
-          dataMaisProxima = data;
+        const dataStr = doc.data().data; // Supondo que a data está em formato 'AAAA-MM-DD'
+        datasDisponiveis.push(dataStr);
+        
+        const dataObj = new Date(dataStr + 'T00:00:00'); // Garante a comparação apenas pela data
+
+        // Calcula a diferença em milissegundos
+        const diff = Math.abs(dataObj.getTime() - hoje.getTime());
+
+        // Se a data do lote for maior ou igual a hoje E for a mais próxima
+        if (dataObj >= hoje) {
+            if (diff < menorDiff) {
+                menorDiff = diff;
+                dataMaisProximaOuHoje = dataStr;
+            }
         }
       });
 
-      datas.forEach(data => {
+      // Ordenar as datas para exibição no select
+      datasDisponiveis.sort((a, b) => new Date(a) - new Date(b));
+
+      // Popular o select com todas as datas disponíveis
+      datasDisponiveis.forEach(data => {
         const opt = document.createElement('option');
         opt.value = data;
         opt.textContent = data;
-        if (data === dataMaisProxima) {
+        if (data === dataMaisProximaOuHoje) {
           opt.selected = true;
         }
         filtro.appendChild(opt);
       });
 
-      carregarPedidos(dataMaisProxima);
+      // Carregar os pedidos para a data selecionada por padrão (a mais próxima ou hoje)
+      if (dataMaisProximaOuHoje) {
+        carregarPedidos(dataMaisProximaOuHoje);
+      } else if (datasDisponiveis.length > 0) {
+        // Se não houver data igual ou superior a hoje, seleciona a primeira data disponível
+        filtro.selectedIndex = 0;
+        carregarPedidos(filtro.value);
+      } else {
+        // Nenhuma data disponível
+        tabela.innerHTML = '<tr><td colspan="6">Nenhuma data de pedido disponível.</td></tr>';
+      }
     }
 
     async function carregarPedidos(data) {
       tabela.innerHTML = '';
       const q = query(collection(db, 'pedidos'), where('data', '==', data), orderBy('timestamp'));
       const snap = await getDocs(q);
+
+      if (snap.empty) {
+        tabela.innerHTML = '<tr><td colspan="6">Nenhum pedido encontrado para esta data.</td></tr>';
+        return;
+      }
 
       snap.forEach(doc => {
         const p = doc.data();
