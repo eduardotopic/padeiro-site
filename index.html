@@ -110,9 +110,32 @@
     const dataExibidaDiv = document.getElementById('dataExibida');
     const dataInputOculto = document.getElementById('data');
 
+    // --- Funções para Cookies ---
+    function setCookie(name, value, days) {
+      let expires = "";
+      if (days) {
+        const date = new Date();
+        date.setTime(date.getTime() + (days * 24 * 60 * 60 * 1000));
+        expires = "; expires=" + date.toUTCString();
+      }
+      document.cookie = name + "=" + (value || "")  + expires + "; path=/";
+    }
+
+    function getCookie(name) {
+      const nameEQ = name + "=";
+      const ca = document.cookie.split(';');
+      for(let i=0; i < ca.length; i++) {
+        let c = ca[i];
+        while (c.charAt(0) === ' ') c = c.substring(1, c.length);
+        if (c.indexOf(nameEQ) === 0) return c.substring(nameEQ.length, c.length);
+      }
+      return null;
+    }
+    // ---------------------------
+
     async function carregarProximaData() {
       const hoje = new Date();
-      hoje.setHours(0, 0, 0, 0); // Zera a hora para comparação apenas da data
+      hoje.setHours(0, 0, 0, 0);
 
       const q = query(
         collection(db, 'lotes'),
@@ -123,10 +146,10 @@
       let proximaData = null;
 
       snap.forEach(doc => {
-        const dataLote = doc.data().data; // A data deve estar no formato 'AAAA-MM-DD'
-        const dataLoteObj = new Date(dataLote + 'T00:00:00'); // Garante que a comparação seja apenas pela data
+        const dataLote = doc.data().data;
+        const dataLoteObj = new Date(dataLote + 'T00:00:00');
 
-        if (dataLoteObj > hoje) { // Verifica se a data do lote é estritamente superior ao dia atual
+        if (dataLoteObj > hoje) {
           if (!proximaData || dataLoteObj < new Date(proximaData + 'T00:00:00')) {
             proximaData = dataLote;
           }
@@ -138,16 +161,44 @@
         dataInputOculto.value = proximaData;
       } else {
         dataExibidaDiv.textContent = "Nenhuma data futura disponível.";
-        dataInputOculto.value = ""; // Limpa o valor se não houver data
-        form.querySelector('button[type="submit"]').disabled = true; // Desabilita o botão de enviar
+        dataInputOculto.value = "";
+        form.querySelector('button[type="submit"]').disabled = true;
         alert("Não há datas futuras disponíveis para pedidos no momento.");
+      }
+    }
+
+    async function carregarDadosDoCookie() {
+      const savedData = getCookie("pedidoData");
+      let camposPreenchidos = false;
+
+      if (savedData) {
+        const data = JSON.parse(savedData);
+        if (data.nome) {
+          form.nome.value = data.nome;
+          camposPreenchidos = true;
+        }
+        if (data.apartamento) {
+          form.apartamento.value = data.apartamento;
+          camposPreenchidos = true;
+        }
+        if (data.torre) {
+          form.torre.value = data.torre;
+          camposPreenchidos = true;
+        }
+      }
+
+      // Gerenciar o foco do cursor
+      if (camposPreenchidos) {
+        form.quantidade.focus();
+      } else {
+        form.nome.focus();
       }
     }
 
     form.addEventListener('submit', async (e) => {
       e.preventDefault();
 
-      const data = dataInputOculto.value; // Pega a data do campo oculto
+      const data = dataInputOculto.value;
       if (!data) {
         alert("Não há data disponível para o pedido.");
         return;
@@ -179,13 +230,25 @@
       });
 
       alert("Pedido enviado com sucesso!");
+
+      // Salvar os dados em um cookie após o envio
+      const dadosParaSalvar = {
+        nome: form.nome.value,
+        apartamento: form.apartamento.value,
+        torre: form.torre.value
+      };
+      setCookie("pedidoData", JSON.stringify(dadosParaSalvar), 30); // Salva por 30 dias
+
       form.reset();
-      // Recarrega a próxima data após o envio bem-sucedido, caso a data atual tenha sido a única disponível
-      carregarProximaData();
+      carregarProximaData(); // Opcional: recarrega a data
+      
+      // O foco será definido ao recarregar os dados do cookie
+      carregarDadosDoCookie(); 
     });
 
-    // Carrega a data assim que a página é carregada
+    // Carrega a data e os dados do cookie quando a página é carregada
     carregarProximaData();
+    window.addEventListener('load', carregarDadosDoCookie);
   </script>
 
 </body>
